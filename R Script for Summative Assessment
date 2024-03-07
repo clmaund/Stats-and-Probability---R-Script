@@ -1,0 +1,187 @@
+# Install and load packages required
+install.packages("readxl","tidyr","caret")
+library(readxl)
+library(tidyr)
+library(ggplot2)
+library(caret)
+
+# Load the two datasets
+covariates <- read_excel("C:/Users/clmau/OneDrive/Documents/Probability and Statistics Assignment/covariates.xlsx")
+biomarkers <- read_excel("C:/Users/clmau/OneDrive/Documents/Probability and Statistics Assignment/biomarkers.xlsx")
+
+#Split out the Biomarker field in the Biomarkers Dataset
+biomarkers <- biomarkers %>%
+  separate(Biomarker, into = c("PatientID", "TestDate"), sep = "-")
+biomarkers$PatientID <- as.numeric(biomarkers$PatientID)
+
+# View the first few rows of the dataset to confirm the wrangling worked as expected
+head(biomarkers)
+
+# View the structure of the dataset
+str(biomarkers)
+
+# View a summary of the dataset
+summary(biomarkers)
+
+#Merge the two datasets using PatientID as the primary key
+data_merged <- merge(covariates, biomarkers, by = "PatientID")
+
+#Checks to ensure data merged as expected
+head(data_merged)
+summary(data_merged)
+
+names(data_merged)
+
+# Filter the data for high and low VAS scores creating new variables
+high_pain <- subset(data_merged, `VAS-at-inclusion` >= 5)
+low_pain <- subset(data_merged, `VAS-at-inclusion` < 5)
+
+summary(high_pain)
+summary(low_pain)
+
+# Boxplot for IL-6 levels in high vs. low VAS groups
+
+ggplot(data_merged, aes(x = factor(`VAS-at-inclusion` >= 5), y = `IL-6`, fill = factor(`VAS-at-inclusion` >= 5))) +
+  geom_boxplot(outlier.shape = NA) +
+  labs(x = "High Pain (VAS ≥ 5)", 
+       y = "IL-6 Levels",
+       fill = "Pain Level",
+       title = "Distribution of IL-6 Levels by Pain Severity") +
+  theme_minimal() +
+  theme(text = element_text(size = 12),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "bottom") + 
+  scale_fill_manual(values = c("FALSE" = "blue", "TRUE" = "red"))
+
+#Visualise the biomarkers to confirm they are normally distributed
+
+#IL-6
+hist(high_pain$`IL-6`, main = "Histogram of IL-6 for High Pain Group", xlab = "IL-6 Levels")
+hist(low_pain$`IL-6`, main = "Histogram of IL-6 for Low Pain Group", xlab = "IL-6 Levels")
+
+#IL-8
+hist(high_pain$`IL-8`, main = "Histogram of IL-8 for High Pain Group", xlab = "IL-8 Levels")
+hist(low_pain$`IL-8`, main = "Histogram of IL-8 for Low Pain Group", xlab = "IL-8 Levels")
+
+#VEGF-A
+hist(high_pain$`VEGF-A`, main = "Histogram of VEGF-A for High Pain Group", xlab = "VEGF-A")
+hist(low_pain$`VEGF-A`, main = "Histogram of VEGF-A for Low Pain Group", xlab = "VEGF-A")
+
+#OPG
+hist(high_pain$`OPG`, main = "Histogram of OPG for High Pain Group", xlab = "OPG")
+hist(low_pain$`OPG`, main = "Histogram of OPG for Low Pain Group", xlab = "OPG")
+
+#TGF-beta-1
+hist(high_pain$`TGF-beta-1`, main = "Histogram of TGF-beta-1 for High Pain Group", xlab = "TGF-beta-1")
+hist(low_pain$`TGF-beta-1`, main = "Histogram of TGF-beta-1 for Low Pain Group", xlab = "TGF-beta-1")
+
+#CXCL9
+hist(high_pain$`CXCL9`, main = "Histogram of CXCL9 for High Pain Group", xlab = "CXCL9")
+hist(low_pain$`CXCL9`, main = "Histogram of CXCL9 for Low Pain Group", xlab = "CXCL9")
+
+#CXCL1
+hist(high_pain$`CXCL1`, main = "Histogram of CXCL1 for High Pain Group", xlab = "CXCL1")
+hist(low_pain$`CXCL1`, main = "Histogram of CXCL1 for Low Pain Group", xlab = "CXCL1")
+
+#IL-18
+hist(high_pain$`IL-18`, main = "Histogram of IL-18 for High Pain Group", xlab = "IL-18")
+hist(low_pain$`IL-18`, main = "Histogram of IL-18 for Low Pain Group", xlab = "IL-18")
+
+#CSF-1
+hist(high_pain$`CSF-1`, main = "Histogram of CSF-1 for High Pain Group", xlab = "CSF-1")
+hist(low_pain$`CSF-1`, main = "Histogram of CSF-1 for Low Pain Group", xlab = "CSF-1")
+
+#Define function for performing Hypothesis tests
+perform_welch_t_test <- function(biomarker_data_high, biomarker_data_low) {
+  t_test_result <- t.test(biomarker_data_high, biomarker_data_low, var.equal = FALSE)
+  return(t_test_result)
+}
+
+# List of biomarkers
+biomarkers <- c("IL-6", "VEGF-A", "OPG", "TGF-beta-1", "IL-8", "CXCL9", "CXCL1", "IL-18", "CSF-1")
+
+# new list for results
+welch_t_test_results_list <- list()
+
+# Loop through each biomarker and perform hypothesis test
+for(biomarker in biomarkers) {
+  high_values <- high_pain[[biomarker]]
+  low_values <- low_pain[[biomarker]]
+  welch_t_test_results_list[[biomarker]] <- t.test(high_values, low_values, var.equal = FALSE)
+}
+
+# Extract p-values and adjust for multiple testing
+p_values_welch <- sapply(welch_t_test_results_list, function(x) x$p.value)
+p_values_adjusted_welch <- p.adjust(p_values_welch, method = "bonferroni")
+
+# Combine results into a data frame
+welch_t_test_summary <- data.frame(
+  Biomarker = biomarkers,
+  P_Value = p_values_welch,
+  P_Adjusted = p_values_adjusted_welch
+)
+
+# Print summary table
+print(welch_t_test_summary)
+
+# install package for regression test
+install.packages ("caret")
+library(caret)
+
+head(data_merged)
+
+data_merged <- data_merged[!is.na(data_merged$`Vas-12months`) & !is.nan(data_merged$`Vas-12months`), ]
+
+#set a seed so that the results are reproducible and align with the report
+set.seed(99)
+
+# Split the data into a training and test set
+training_indices <- createDataPartition(data_merged$`Vas-12months`, p = 0.8, list = FALSE, times = 1)
+training_set <- data_merged[training_indices, ]
+test_set <- data_merged[-training_indices, ]
+
+# Train the regression model using the training set
+model <- lm(`Vas-12months` ~ `IL-8` + `VEGF-A` + `OPG` + `TGF-beta-1` + `IL-6` + `CXCL9` + `CXCL1` + `IL-18` + `CSF-1` + `Age` + `Sex (1=male, 2=female)` + `Smoker (1=yes, 2=no)` + `VAS-at-inclusion`, data = training_set)
+
+# Summarise the model to see the coefficients and statistics
+model_summary <- summary(model)
+
+# View the summary
+print(model_summary)
+
+# Create a summary table of coefficients
+coefficient_table <- coef(summary(model))
+
+# View the coefficient table
+print(coefficient_table)
+
+#Plot the residuals
+plot(model, which = 1) # Residuals vs Fitted 
+plot(model, which = 2) # Normal Q-Q
+
+residuals <- residuals(model)
+hist(residuals, breaks = "Sturges", main = "Histogram of Residuals", xlab = "Residuals", col = "blue")
+lines(density(residuals), col = "red", lwd = 2)
+
+#test the model on the test dataset
+predicted_VAS <- predict(model, newdata = test_set)
+
+comparison <- data.frame(Actual = test_set$`Vas-12months`, Predicted = predicted_VAS)
+
+mse_test <- mean((predicted_VAS - test_set$`Vas-12months`)^2, na.rm = TRUE)
+rmse_test <- sqrt(mse_test)
+
+print(comparison)
+print(paste("Mean Squared Error (MSE) on test set:", mse_test))
+print(paste("Root Mean Squared Error (RMSE) on test set:", rmse_test))
+
+actual_vs_predicted <- data.frame(ActualVAS = test_set$`Vas-12months`, PredictedVAS = predicted_VAS)
+
+ggplot(actual_vs_predicted, aes(x = ActualVAS, y = PredictedVAS)) +
+  geom_point(alpha = 0.6) +
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "solid") +  
+  labs(x = "Actual 12-month VAS", y = "Predicted 12-month VAS", title = "Actual vs Predicted 12-month VAS") +
+  theme_minimal() +
+  theme(text = element_text(size = 14),  
+        plot.title = element_text(hjust = 0.6), 
+        axis.title = element_text(size = 14))
