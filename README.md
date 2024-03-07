@@ -1,1 +1,1 @@
-This repo contains 1 file which is R Code used to perform a statistical analysis as part of the summative assessment
+This repo contains 1 file which is R Code used to perform a statistical analysis as part of the summative assessment. It also contains the 2 datasets used in the analysis. The file paths should be updated to whereever you decide to save the files, in the R code to ensure that the datasets can be loaded correctly. 
